@@ -33,11 +33,11 @@ local anim8 = {
 ---@field frameHeight integer
 ---@field imageHeight integer
 ---@field imageWidth integer
----@field left integer
----@field top integer
----@field border integer
----@field width integer
----@field height integer
+---@field left number
+---@field top number
+---@field border number
+---@field width number
+---@field height number
 ---@field _key integer
 
 local Grid = {}
@@ -61,8 +61,8 @@ local function assertPositiveInteger(value, name)
 end
 
 ---@param self Grid
----@param x integer
----@param y integer
+---@param x number
+---@param y number
 ---@return love.Quad
 local function createFrame(self, x, y)
     local fw, fh = self.frameWidth, self.frameHeight
@@ -83,8 +83,8 @@ local function getGridKey(...)
 end
 
 ---@param self Grid
----@param x integer
----@param y integer
+---@param x number
+---@param y number
 ---@return love.Quad
 local function getOrCreateFrame(self, x, y)
     if x < 1 or x > self.width or y < 1 or y > self.height then
@@ -137,9 +137,9 @@ local Gridmt = {
 ---@param frameHeight integer
 ---@param imageWidth integer
 ---@param imageHeight integer
----@param left? integer
----@param top? integer
----@param border? integer
+---@param left? number
+---@param top? number
+---@param border? number
 ---@return Grid
 local function newGrid(
     frameWidth,
@@ -190,11 +190,11 @@ end
 ---@class Animation
 ---@field frames love.Quad[]
 ---@field durations number|table
----@field intervals any?
----@field totalDuration integer?
+---@field intervals string[]?
+---@field totalDuration number?
 ---@field onLoop function?
 ---@field timer integer?,
----@field position integer?
+---@field position number?
 ---@field status string
 ---@field flippedH boolean?
 ---@field flippedV boolean?
@@ -211,7 +211,7 @@ local function cloneArray(arr)
     return result
 end
 
----@param durations number|table
+---@param durations number|number[]
 ---@param frameCount integer
 ---@return table
 local function parseDurations(durations, frameCount)
@@ -261,7 +261,7 @@ local Animationmt = { __index = Animation }
 local nop = function() end
 
 ---@param frames table
----@param durations number|table
+---@param durations number|number[]
 ---@param onLoop function?
 ---@return Animation
 local function newAnimation(frames, durations, onLoop)
