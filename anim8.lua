@@ -36,16 +36,19 @@ local anim8 = {
 ---@field left number
 ---@field top number
 ---@field border number
----@field width number
----@field height number
+---@field width integer
+---@field height integer
 ---@field _key integer
+---
+---@field getFrames fun(self: Grid, ...:number|string): love.Quad
 
+---@type Grid
+---@diagnostic disable-next-line: missing-fields
 local Grid = {}
 
 ---@type love.Quad[]
 local _frames = {}
 
----Assert a value is a positive integer
 ---@param value any
 ---@param name any
 local function assertPositiveInteger(value, name)
@@ -97,6 +100,8 @@ local function getOrCreateFrame(self, x, y)
     return _frames[key][x][y]
 end
 
+---@param str number|string
+---@return number?, number?, integer
 local function parseInterval(str)
     if type(str) == "number" then
         return str, str, 1
@@ -109,8 +114,8 @@ local function parseInterval(str)
     return min, max, step
 end
 
----@class Grid
----@field getFrames function
+---@param ... number|string
+---@return love.Quad[]
 function Grid:getFrames(...)
     local result, args = {}, { ... }
     local minx, maxx, stepx, miny, maxy, stepy
@@ -190,15 +195,30 @@ end
 ---@class Animation
 ---@field frames love.Quad[]
 ---@field durations number|table
----@field intervals string[]?
----@field totalDuration number?
----@field onLoop function?
----@field timer integer?,
----@field position number?
----@field status string
+---@field onLoop fun(self: Animation, loops: integer)|string?
 ---@field flippedH boolean?
 ---@field flippedV boolean?
+---@field intervals number[]?
+---@field totalDuration number?
+---@field timer number,
+---@field position integer
+---@field status "playing"|"paused"
+---
+---@field clone fun(self: Animation, ...: number|string): Animation
+---@field flipH fun(self: Animation): self
+---@field flipV fun(self: Animation): self
+---@field update fun(self: Animation, dt: number)
+---@field pause fun(self: Animation)
+---@field gotoFrame fun(self: Animation, position: integer)
+---@field pauseAtEnd fun(self: Animation)
+---@field pauseAtStart fun(self: Animation)
+---@field resume fun(self: Animation)
+---@field draw fun(self: Animation, image: love.Texture|love.Drawable, x: number?, y: number?, r: number?, sx: number?, sy: number?, ox: number?, oy: number?, kx: number?, ky: number?)
+---@field getFrameInfo fun(self: Animation, x: number?, y: number?, r: number?, sx: number?, sy: number?, ox: number?, oy: number?, kx: number?, ky: number?): love.Quad, number?, number?, number?, number?, number?, number?, number?, number?, number?
+---@field getDimensions fun(self: Animation): number, number
 
+---@type Animation
+---@diagnostic disable-next-line: missing-fields
 local Animation = {}
 
 ---@param arr table
@@ -211,7 +231,7 @@ local function cloneArray(arr)
     return result
 end
 
----@param durations number|number[]
+---@param durations number|table
 ---@param frameCount integer
 ---@return table
 local function parseDurations(durations, frameCount)
@@ -260,9 +280,9 @@ end
 local Animationmt = { __index = Animation }
 local nop = function() end
 
----@param frames table
----@param durations number|number[]
----@param onLoop function?
+---@param frames love.Quad[]
+---@param durations number|table
+---@param onLoop function|string?
 ---@return Animation
 local function newAnimation(frames, durations, onLoop)
     local td = type(durations)
@@ -288,8 +308,6 @@ local function newAnimation(frames, durations, onLoop)
     }, Animationmt)
 end
 
----@class Animation
----@field clone function
 ---@return Animation
 function Animation:clone()
     local newAnim = newAnimation(self.frames, self.durations, self.onLoop)
@@ -297,24 +315,20 @@ function Animation:clone()
     return newAnim
 end
 
----@class Animation
----@field flipH function
 ---@return Animation
 function Animation:flipH()
     self.flippedH = not self.flippedH
     return self
 end
 
----@class Animation
----@field flipV function
 ---@return Animation
 function Animation:flipV()
     self.flippedV = not self.flippedV
     return self
 end
 
----@param intervals table
----@param timer integer
+---@param intervals number[]
+---@param timer number
 ---@return integer
 local function seekFrameIndex(intervals, timer)
     local high, low, i = #intervals - 1, 1, 1
@@ -333,9 +347,7 @@ local function seekFrameIndex(intervals, timer)
     return i
 end
 
----@class Animation
----@field update function
----@param dt integer time delta
+---@param dt number time delta
 function Animation:update(dt)
     if self.status ~= "playing" then
         return
@@ -353,44 +365,32 @@ function Animation:update(dt)
     self.position = seekFrameIndex(self.intervals, self.timer)
 end
 
----@class Animation
----@field pause function
 function Animation:pause()
     self.status = "paused"
 end
 
----@class Animation
----@field gotoFrame function
 ---@param position integer
 function Animation:gotoFrame(position)
     self.position = position
     self.timer = self.intervals[self.position]
 end
 
----@class Animation
----@field pauseAtEnd function
 function Animation:pauseAtEnd()
     self.position = #self.frames
     self.timer = self.totalDuration
     self:pause()
 end
 
----@class Animation
----@field pauseAtStart function
 function Animation:pauseAtStart()
     self.position = 1
     self.timer = 0
     self:pause()
 end
 
----@class Animation
----@field resume function
 function Animation:resume()
     self.status = "playing"
 end
 
----@class Animation
----@field draw function
 ---@param image love.Texture|love.Drawable
 ---@param x number?
 ---@param y number?
@@ -408,8 +408,6 @@ function Animation:draw(image, x, y, r, sx, sy, ox, oy, kx, ky)
     )
 end
 
----@class Animation
----@field getFrameInfo function
 ---@param x number?
 ---@param y number?
 ---@param r number?
@@ -419,7 +417,7 @@ end
 ---@param oy number?
 ---@param kx number?
 ---@param ky number?
----@return unknown, number?, number?, number?, number?, number?, number?, number?, number?, number?
+---@return love.Quad, number?, number?, number?, number?, number?, number?, number?, number?, number?
 function Animation:getFrameInfo(x, y, r, sx, sy, ox, oy, kx, ky)
     local frame = self.frames[self.position]
     if self.flippedH or self.flippedV then
@@ -444,8 +442,6 @@ function Animation:getFrameInfo(x, y, r, sx, sy, ox, oy, kx, ky)
     return frame, x, y, r, sx, sy, ox, oy, kx, ky
 end
 
----@class Animation
----@field getDimensions function
 ---@return number, number
 function Animation:getDimensions()
     local _, _, w, h = self.frames[self.position]:getViewport()
